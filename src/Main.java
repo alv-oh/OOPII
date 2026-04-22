@@ -10,8 +10,12 @@ public class Main {
         mySedan.accelerate();
 
         // Overloading
-        mySedan.accelerate(30);
+        mySedan.accelerate(20);
 
         mySedan.stop();
+
+        mySedan.gas();
+
+        mySedan.openTrunk();
     }
 }
