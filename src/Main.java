@@ -17,5 +17,9 @@ public class Main {
         mySedan.gas();
 
         mySedan.openTrunk();
+
+        Bus myBus = new Bus("Isuzu");
+        myBus.accelerate();
+        myBus.accelerate(50);
     }
 }
