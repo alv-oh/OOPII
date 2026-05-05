@@ -1,8 +1,8 @@
 # Movies Module — JavaFX Lab 2
 
 ## Overview
-This is the Movies section of a JavaFX Movie Rental System built in pure Java (no FXML).
-It allows users to add movies under specific genres and remove them from the system.
+The Movies section of a JavaFX Movie Rental System, built in pure Java (no FXML).
+Allows users to add movies under specific genres and remove them from the system.
 
 ---
 
@@ -11,10 +11,10 @@ It allows users to add movies under specific genres and remove them from the sys
 ```
 src/com/example/
 │
-├── MoviesApp.java       → Entry point. Launches the JavaFX window.
-├── MoviesView.java      → Builds the entire UI in Java. Handles all button logic.
-├── GenreStore.java      → In-memory data store. Holds all genres and their movies.
-└── Movie.java           → Model class. Represents a single movie (name + genre).
+├── MoviesApp.java      → Entry point. Launches the JavaFX window.
+├── MoviesView.java     → Builds the UI in Java. Handles all button logic.
+├── GenreStore.java     → In-memory store. Holds all genres and their movies.
+└── Movie.java          → Model class. Represents a single movie (name + genre).
 ```
 
 ---
@@ -22,59 +22,39 @@ src/com/example/
 ## Files Explained
 
 ### `Movie.java`
-A simple model (blueprint) for a movie object.
-Every movie has two fields:
-- `name` — the title of the movie
-- `genre` — the genre it belongs to
-
-The `toString()` method returns just the name, so ComboBoxes display it cleanly.
-
----
+A blueprint for a movie object. Every movie has a `name` and a `genre`.
+The `toString()` method returns just the name so ComboBoxes display it cleanly.
 
 ### `GenreStore.java`
-The in-memory database for the entire app.
-Uses a **Singleton pattern** — meaning only one instance ever exists, shared across all parts of the app.
+The in-memory database. Uses a **Singleton pattern** so only one instance exists
+and is shared across the whole app.
 
-Internally it holds a `Map<String, List<Movie>>`:
-- Keys are genre names (Action, Comedy, Horror, Romance, Sci-Fi)
-- Values are lists of movies registered under that genre
+Stores data as `Map<String, List<Movie>>` — each genre maps to a list of its movies:
+```
+"Action"  → [Inception, John Wick]
+"Comedy"  → [Home Alone]
+"Horror"  → []
+```
 
-**Methods:**
 | Method | What it does |
 |---|---|
 | `getInstance()` | Returns the single shared instance |
-| `addMovie(genre, name)` | Adds a movie to a genre. Rejects blanks and duplicates |
+| `addMovie(genre, name)` | Adds a movie. Rejects blanks and duplicates |
 | `removeMovie(genre, name)` | Removes a movie from a genre |
 | `getMovies(genre)` | Returns all movies in a given genre |
 
----
-
 ### `MoviesView.java`
-The UI class. Extends `VBox` (a vertical layout container).
-Builds and manages the entire interface programmatically — no FXML file needed.
+The UI class. Extends `VBox` (vertical layout — everything stacks top to bottom).
+Builds the interface in Java code and wires all button actions.
 
-**UI Components:**
-| Component | Purpose |
-|---|---|
-| `genreComboBox` | Dropdown to select a genre |
-| `movieNameField` | Text input for the movie name |
-| `saveButton` | Saves the movie to the selected genre |
-| `registeredComboBox` | Shows all movies in the selected genre |
-| `removeButton` | Removes the selected movie |
-| `saveStatusLabel` | Feedback message for save action |
-| `removeStatusLabel` | Feedback message for remove action |
-
-**Key behaviour:**
-- Selecting a genre automatically refreshes the Registered dropdown
-- Save validates that a genre is selected and the name is not empty or duplicate
-- Remove validates that a genre and a movie are both selected
-- Status labels turn green on success, red on error
-
----
+- Selecting a genre refreshes the Registered dropdown automatically
+- Save validates input then calls `store.addMovie()`
+- Remove validates selection then calls `store.removeMovie()`
+- Status labels show feedback after each action
 
 ### `MoviesApp.java`
-The launch file. Extends JavaFX's `Application` class.
-Creates a `MoviesView`, wraps it in a `Scene`, places it on the `Stage` (window), and displays it.
+The launch file. Creates a `MoviesView`, wraps it in a `Scene`, puts it on the
+`Stage` (window) and calls `show()`.
 
 ---
 
@@ -93,16 +73,16 @@ Creates a `MoviesView`, wraps it in a `Scene`, places it on the `Stage` (window)
 ## Data Flow
 
 ```
-MoviesApp  →  launches
-  MoviesView  →  builds UI, handles events
-    GenreStore  →  reads and writes data
-      Movie  →  the data itself
+MoviesApp     → launches the window
+  MoviesView  → builds UI, handles button clicks
+    GenreStore → reads and writes movie data
+      Movie   → the data itself
 ```
 
 ---
 
 ## Notes
-- Data is stored **in memory only** — it resets every time the app is closed
-- The Singleton pattern in `GenreStore` means if you later add Customers or Rentals modules,
-  they can all share the same movie data without passing objects around
-- No FXML or external layout files are used — the entire UI is built in Java code
+- Data is **in memory only** — resets when the app closes
+- The Singleton in `GenreStore` means future modules (Customers, Rentals)
+  can share the same data without passing objects around
+- No FXML — the entire UI is built directly in Java

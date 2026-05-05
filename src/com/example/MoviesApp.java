@@ -9,7 +9,7 @@ public class MoviesApp extends Application {
     @Override
     public void start(Stage stage) {
         MoviesView view = new MoviesView();
-        Scene scene = new Scene(view);
+        Scene scene = new Scene(view, 350, 400);
         stage.setTitle("Movie Rental System - Movies");
         stage.setScene(scene);
         stage.setResizable(false);
@@ -20,8 +20,3 @@ public class MoviesApp extends Application {
         launch(args);
     }
 }
-
-//MoviesApp (launches)
-//  → MoviesView (builds UI + handles events)
-//    → GenreStore (reads/writes data)
-//      → Movie (the data itself)
