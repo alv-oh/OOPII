@@ -3,6 +3,7 @@
 ## Overview
 The Movies section of a JavaFX Movie Rental System, built in pure Java (no FXML).
 Allows users to add movies under specific genres and remove them from the system.
+Movie data is saved to a text file and reloaded automatically on every run.
 
 ---
 
@@ -15,6 +16,8 @@ src/com/example/
 ├── MoviesView.java     → Builds the UI in Java. Handles all button logic.
 ├── GenreStore.java     → In-memory store. Holds all genres and their movies.
 └── Movie.java          → Model class. Represents a single movie (name + genre).
+
+movies.txt              → Auto-generated. Stores saved movies between runs.
 ```
 
 ---
@@ -22,11 +25,13 @@ src/com/example/
 ## Data Flow
 
 ```
-main() → launch() → start() → new MoviesView() → buildUI() + wireEvents()
-                                      ↕
-                                GenreStore (data)
-                                      ↕
-                                 Movie (objects)
+main() → launch() → start() → loadFromFile() → new MoviesView() → buildUI() + wireEvents()
+                                                       ↕
+                                                 GenreStore (data)
+                                                       ↕
+                                                  Movie (objects)
+                                                       ↕
+                                on window close → saveToFile() → movies.txt
 ```
 
 ---
@@ -40,6 +45,28 @@ main() → launch() → start() → new MoviesView() → buildUI() + wireEvents(
    ```
 3. Set the main class to `com.example.MoviesApp`
 4. Click Run
+
+---
+
+## Persistence
+
+Movie data is saved to a plain text file called `movies.txt` in the project root folder.
+
+Each line stores one movie in the format:
+```
+genre,movieName
+```
+
+Example contents of `movies.txt`:
+```
+Action,Inception
+Action,John Wick
+Comedy,Home Alone
+```
+
+- `movies.txt` is created automatically the first time you close the app
+- On every launch, the app reads the file and reloads all saved movies
+- If the file does not exist yet (first ever run), the app starts with empty lists
 
 ---
 
@@ -111,10 +138,12 @@ This class belongs to the `com.example` package.
 ---
 
 ```java
+import java.io.*;
 import java.util.*;
 ```
-Imports everything from `java.util` — gives us access to `List`, `Map`, `ArrayList`,
-`LinkedHashMap`, and `Collections` without writing the full path each time.
+`java.io.*` gives us file reading and writing tools — `BufferedWriter`, `BufferedReader`,
+`FileWriter`, `FileReader`, `File`, and `IOException`.
+`java.util.*` gives us `List`, `Map`, `ArrayList`, `LinkedHashMap`, and `Collections`.
 
 ---
 
@@ -146,6 +175,14 @@ private final Map<String, List<Movie>> data = new LinkedHashMap<>();
 ```
 The actual storage. A `Map` where each key is a genre name and each value is a list of movies
 in that genre. `LinkedHashMap` keeps genres in the order they were inserted.
+
+---
+
+```java
+private static final String FILE_PATH = "movies.txt";
+```
+The name of the file where movies are saved. `static final` means it never changes.
+The file will be created in the project root folder.
 
 ---
 
@@ -201,8 +238,8 @@ and we reject it.
 
 ```java
 for (Movie m : list) {
-        if (m.getName().equalsIgnoreCase(movieName.trim())) return false;
-        }
+    if (m.getName().equalsIgnoreCase(movieName.trim())) return false;
+}
 ```
 Loops through existing movies in that genre. If any one of them matches the new name
 (ignoring case), it is a duplicate — reject it.
@@ -211,7 +248,7 @@ Loops through existing movies in that genre. If any one of them matches the new 
 
 ```java
 list.add(new Movie(movieName.trim(), genre));
-        return true;
+return true;
 ```
 No issues found — create a new `Movie` object and add it to the list.
 `.trim()` removes any accidental spaces. Return `true` to signal success.
@@ -237,6 +274,84 @@ public List<Movie> getMovies(String genre) {
 ```
 Returns all movies for a genre. `getOrDefault()` means — if that genre key exists return its list,
 if not return an empty list instead of null. Safer than a plain `get()`.
+
+---
+
+```java
+public void saveToFile() {
+    try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_PATH))) {
+```
+Opens `movies.txt` for writing. `BufferedWriter` writes text efficiently.
+`try (...)` is a try-with-resources block — it automatically closes the file when done,
+even if an error occurs.
+
+---
+
+```java
+        for (String genre : GENRES) {
+            for (Movie movie : data.get(genre)) {
+                writer.write(genre + "," + movie.getName());
+                writer.newLine();
+            }
+        }
+```
+Loops through every genre, then through every movie in that genre.
+Writes each one as `genre,movieName` followed by a new line character.
+
+---
+
+```java
+    } catch (IOException e) {
+        System.out.println("Error saving to file: " + e.getMessage());
+    }
+}
+```
+If anything goes wrong while writing (e.g. no disk space, permission issue),
+catch the error and print a message instead of crashing the app.
+
+---
+
+```java
+public void loadFromFile() {
+    File file = new File(FILE_PATH);
+    if (!file.exists()) return;
+```
+Creates a `File` object pointing to `movies.txt`. If the file does not exist yet
+(first ever run), return immediately — nothing to load.
+
+---
+
+```java
+    try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+```
+Opens the file for reading. `readLine()` reads one line at a time.
+The loop continues until `readLine()` returns null, which means the end of the file.
+
+---
+
+```java
+            String[] parts = line.split(",", 2);
+            if (parts.length == 2) {
+                String genre     = parts[0].trim();
+                String movieName = parts[1].trim();
+                addMovie(genre, movieName);
+            }
+```
+Splits each line on the comma into exactly 2 parts — genre and movie name.
+The `2` in `split(",", 2)` means stop splitting after the first comma, so movie names
+that contain a comma won't break. Then calls `addMovie()` to load it into the store.
+
+---
+
+```java
+    } catch (IOException e) {
+        System.out.println("Error loading from file: " + e.getMessage());
+    }
+}
+```
+If anything goes wrong while reading, catch the error and print a message.
 
 ---
 ---
@@ -317,7 +432,7 @@ setPadding(new Insets(20));
 
 ```java
 genreComboBox.setItems(FXCollections.observableArrayList(GenreStore.GENRES));
-        genreComboBox.setPromptText("Select a genre");
+genreComboBox.setPromptText("Select a genre");
 ```
 Loads the 5 genres into the dropdown. `FXCollections.observableArrayList()` converts the plain
 list into a JavaFX-friendly list the UI can watch for changes. `setPromptText` is the grey
@@ -336,12 +451,12 @@ Sets placeholder text. This dropdown starts empty — it only gets populated aft
 getChildren().addAll(
     new Label("Genre:"),      genreComboBox,
     new Label("Name:"),       movieNameField,
-saveButton,
-saveStatusLabel,
-        new Separator(),
+                              saveButton,
+                              saveStatusLabel,
+    new Separator(),
     new Label("Registered:"), registeredComboBox,
-removeButton,
-removeStatusLabel
+                              removeButton,
+                              removeStatusLabel
 );
 ```
 `getChildren()` is the VBox's list of things to display. `addAll()` adds everything at once in order
@@ -362,7 +477,7 @@ is the newly selected genre. We pass `newVal` to `refreshRegistered()`.
 
 ```java
 saveButton.setOnAction(e -> handleSave());
-        removeButton.setOnAction(e -> handleRemove());
+removeButton.setOnAction(e -> handleRemove());
 ```
 `setOnAction` means — when this button is clicked, call this method. `e` is the click event
 object (we do not need it here so we ignore it).
@@ -380,13 +495,13 @@ Reads the current values from the UI. `getValue()` gets the selected item from t
 
 ```java
 if (genre == null) {
-        saveStatusLabel.setText("Please select a genre.");
+    saveStatusLabel.setText("Please select a genre.");
     return;
-            }
-            if (name == null || name.isBlank()) {
-        saveStatusLabel.setText("Movie name cannot be empty.");
+}
+if (name == null || name.isBlank()) {
+    saveStatusLabel.setText("Movie name cannot be empty.");
     return;
-            }
+}
 ```
 Input validation. If either field is missing, show an error in the status label and `return` —
 stop the method right there, do not continue.
@@ -396,11 +511,11 @@ stop the method right there, do not continue.
 ```java
 boolean added = store.addMovie(genre, name);
 if (added) {
-        saveStatusLabel.setText("\"" + name.trim() + "\" saved to " + genre + ".");
-        movieNameField.clear();
-refreshRegistered(genre);
+    saveStatusLabel.setText("\"" + name.trim() + "\" saved to " + genre + ".");
+    movieNameField.clear();
+    refreshRegistered(genre);
 } else {
-        saveStatusLabel.setText("Movie already exists in this genre.");
+    saveStatusLabel.setText("Movie already exists in this genre.");
 }
 ```
 Calls `addMovie()` on the store. If it returned `true`, show a success message, clear the text
@@ -415,7 +530,7 @@ List<String> names = store.getMovies(genre)
         .map(Movie::getName)
         .collect(Collectors.toList());
 registeredComboBox.setItems(FXCollections.observableArrayList(names));
-        registeredComboBox.getSelectionModel().clearSelection();
+registeredComboBox.getSelectionModel().clearSelection();
 ```
 Gets movies for the genre from the store. `.stream()` converts the list so we can process it.
 `.map(Movie::getName)` transforms each `Movie` object into just its name string.
@@ -454,6 +569,15 @@ and passes it in for you.
 ---
 
 ```java
+GenreStore store = GenreStore.getInstance();
+store.loadFromFile();
+```
+Gets the shared store and immediately loads any previously saved movies from `movies.txt`
+before the window opens, so the data is ready when the UI appears.
+
+---
+
+```java
 MoviesView view = new MoviesView();
 Scene scene = new Scene(view, 350, 400);
 ```
@@ -466,10 +590,24 @@ and height of 400px.
 stage.setTitle("Movie Rental System - Movies");
 stage.setScene(scene);
 stage.setResizable(false);
-stage.show();
 ```
 `setTitle()` sets the window title bar text. `setScene()` puts the scene into the window.
-`setResizable(false)` locks the window size. `show()` makes the window visible.
+`setResizable(false)` locks the window size.
+
+---
+
+```java
+stage.setOnCloseRequest(e -> store.saveToFile());
+```
+Registers a handler that fires the moment the user clicks the X to close the window.
+It calls `saveToFile()` which writes all current movies to `movies.txt` before the app exits.
+
+---
+
+```java
+stage.show();
+```
+Makes the window visible.
 
 ---
 
@@ -484,7 +622,8 @@ and eventually calls `start()`. You always just call `launch(args)` and let Java
 ---
 
 ## Notes
-- Data is **in memory only** — resets when the app closes
+- `movies.txt` is created automatically in the project root on first close
+- Data persists between runs — closing and reopening the app reloads all saved movies
 - The Singleton in `GenreStore` means future modules (Customers, Rentals) can share the same
   data without passing objects around
 - No FXML — the entire UI is built directly in Java
